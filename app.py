@@ -11,7 +11,7 @@ st.title("📈 Predicción automática de series temporales con AutoTS")
 uploaded_file = st.file_uploader("📎 Sube un archivo CSV con la serie temporal", type="csv")
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    df = pd.read_csv(uploaded_file, sep=',', quotechar='"')
 
     # Intentar convertir primera columna a índice de fechas con múltiples formatos
     date_column = df.columns[0]
@@ -150,3 +150,4 @@ if uploaded_file:
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
+
