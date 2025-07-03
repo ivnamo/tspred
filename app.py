@@ -13,13 +13,28 @@ uploaded_file = st.file_uploader("📎 Sube un archivo CSV con la serie temporal
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
-    # Intentar convertir primera columna a índice de fechas
-    try:
-        df[df.columns[0]] = pd.to_datetime(df[df.columns[0]])
-        df.set_index(df.columns[0], inplace=True)
-    except Exception as e:
-        st.error(f"❌ No se pudo convertir la columna de fechas. Error: {e}")
-        st.stop()
+    # Intentar convertir primera columna a índice de fechas con múltiples formatos
+    date_column = df.columns[0]
+    parse_success = False
+    date_formats = ["%Y-%m-%d", "%Y-%m", "%Y"]
+
+    for fmt in date_formats:
+        try:
+            df[date_column] = pd.to_datetime(df[date_column], format=fmt)
+            df.set_index(date_column, inplace=True)
+            parse_success = True
+            break
+        except Exception:
+            continue
+
+    if not parse_success:
+        try:
+            df[date_column] = pd.to_datetime(df[date_column], errors='raise')
+            df.set_index(date_column, inplace=True)
+            parse_success = True
+        except Exception as e:
+            st.error(f"❌ No se pudo convertir la columna de fechas automáticamente. Error: {e}")
+            st.stop()
 
     if not isinstance(df.index, pd.DatetimeIndex):
         st.error("❌ El índice del dataset no es una serie temporal válida. Asegúrate de que la primera columna tenga fechas.")
@@ -135,4 +150,3 @@ if uploaded_file:
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
-
