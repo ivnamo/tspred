@@ -11,7 +11,20 @@ st.title("📈 Predicción automática de series temporales con AutoTS")
 uploaded_file = st.file_uploader("📎 Sube un archivo CSV con la serie temporal", type="csv")
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file, parse_dates=True, index_col=0)
+    df = pd.read_csv(uploaded_file)
+
+    # Intentar convertir primera columna a índice de fechas
+    try:
+        df[df.columns[0]] = pd.to_datetime(df[df.columns[0]])
+        df.set_index(df.columns[0], inplace=True)
+    except Exception as e:
+        st.error(f"❌ No se pudo convertir la columna de fechas. Error: {e}")
+        st.stop()
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        st.error("❌ El índice del dataset no es una serie temporal válida. Asegúrate de que la primera columna tenga fechas.")
+        st.stop()
+
     st.subheader("📄 Vista previa de los datos")
     st.dataframe(df.head())
 
@@ -122,5 +135,4 @@ if uploaded_file:
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
-
 
