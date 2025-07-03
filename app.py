@@ -19,6 +19,10 @@ if uploaded_file:
         st.write("Vista previa de los datos:")
         st.dataframe(df.head())
 
+        if df.shape[1] < 2:
+            st.error("❌ El archivo debe contener al menos dos columnas: fecha y valor numérico.")
+            st.stop()
+
         date_column = df.columns[0]
         value_column = df.columns[1]
 
@@ -35,7 +39,8 @@ if uploaded_file:
 
         if not parsed:
             try:
-                df[date_column] = pd.to_datetime(df[date_column], errors='raise')
+                df[date_column] = pd.to_datetime(df[date_column], format='mixed')
+                parsed = True
             except Exception as e:
                 st.error(f"❌ No se pudo convertir la columna de fechas automáticamente. Error: {e}")
                 st.stop()
@@ -99,4 +104,3 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {e}")
-
