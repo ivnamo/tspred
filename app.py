@@ -12,7 +12,7 @@ uploaded_file = st.file_uploader("🔼 Sube un archivo CSV con la serie temporal
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, parse_dates=True, index_col=0)
-    st.subheader("Vista previa de los datos")
+    st.subheader("📄 Vista previa de los datos")
     st.dataframe(df.head())
 
     # Configuración
@@ -34,10 +34,10 @@ if uploaded_file:
 
         st.info(f"🧮 Estimando alrededor de {total_models} modelos por evaluar...")
 
-        # Simulación de progreso estimado (para feedback visual)
+        # Barra de progreso simulada (visual)
         progress_bar = st.progress(0)
         status_text = st.empty()
-        for i in range(40):  # simulación parcial (puede ajustarse)
+        for i in range(40):
             time.sleep(0.05)
             progress_bar.progress((i + 1) / 40)
 
@@ -52,7 +52,6 @@ if uploaded_file:
                 max_generations=max_generations,
                 drop_most_recent=1
             )
-
             model = model.fit(df)
             prediction = model.predict()
             forecast_df = prediction.forecast
@@ -60,10 +59,11 @@ if uploaded_file:
         progress_bar.empty()
         st.success("✅ Modelos entrenados y predicción generada")
 
-        # Resultados
+        # Predicción
         st.subheader("📈 Predicción")
         st.line_chart(forecast_df)
 
+        # Gráfico conjunto
         fig, ax = plt.subplots()
         df.iloc[:, 0].plot(ax=ax, label="Histórico", color="blue")
         forecast_df.iloc[:, 0].plot(ax=ax, label="Predicción", color="orange", linestyle="--")
@@ -81,16 +81,23 @@ if uploaded_file:
         results_df = model.results().sort_values("Score", ascending=False)
         st.dataframe(results_df[["Model", "TransformationParameters", "Score"]].head())
 
-        # Número de modelos exitosos
         st.markdown(f"📌 Modelos evaluados exitosamente: **{len(results_df)}**")
-        
-        # AutoTS no expone errores de modelos descartados directamente
-        with st.expander("ℹ️ Información"):
-        st.markdown("ℹ️ Algunos modelos fueron descartados automáticamente durante la evaluación. "
-                "AutoTS continúa con los modelos viables y elige el mejor sin necesidad de intervención."
-                   )
 
+        # Info general
+        with st.expander("ℹ️ Información"):
+            st.markdown(
+                "ℹ️ Algunos modelos fueron descartados automáticamente durante la evaluación. "
+                "AutoTS continúa con los modelos viables y elige el mejor sin necesidad de intervención."
+            )
+
+        # Exportar predicción
+        csv = forecast_df.to_csv(index=True).encode('utf-8')
+        st.download_button(
+            label="📥 Descargar predicción en CSV",
+            data=csv,
+            file_name="forecast_autots.csv",
+            mime='text/csv'
+        )
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
-
