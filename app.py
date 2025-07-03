@@ -112,6 +112,3 @@ if uploaded_file:
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
-
-else:
-    st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
