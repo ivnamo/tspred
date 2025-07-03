@@ -20,6 +20,7 @@ if uploaded_file:
 
     for fmt in date_formats:
         try:
+            df[date_column] = df[date_column].astype(str).str.replace('"', '').str.strip()
             df[date_column] = pd.to_datetime(df[date_column], format=fmt)
             df.set_index(date_column, inplace=True)
             parse_success = True
@@ -29,6 +30,7 @@ if uploaded_file:
 
     if not parse_success:
         try:
+            df[date_column] = df[date_column].astype(str).str.replace('"', '').str.strip()
             df[date_column] = pd.to_datetime(df[date_column], errors='raise')
             df.set_index(date_column, inplace=True)
             parse_success = True
@@ -150,4 +152,5 @@ if uploaded_file:
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
+
 
