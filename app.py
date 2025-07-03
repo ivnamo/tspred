@@ -56,7 +56,7 @@ if uploaded_file:
                     transformer_list="fast",
                     max_generations=max_generations,
                     drop_most_recent=1,
-                    validation_method="simple"
+                    validation_method="backwards"
                 )
                 model = model.fit(df)
                 prediction = model.predict()
