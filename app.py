@@ -83,12 +83,12 @@ if uploaded_file:
 
         # Número de modelos exitosos
         st.markdown(f"📌 Modelos evaluados exitosamente: **{len(results_df)}**")
+        
+        # AutoTS no expone errores de modelos descartados directamente
+        with st.expander("ℹ️ Información"):
+        st.markdown("ℹ️ Algunos modelos fueron descartados automáticamente durante la evaluación. "
+                "AutoTS continúa con los modelos viables y elige el mejor sin necesidad de intervención.")
 
-        # Mostrar errores si los hay
-        errors_df = model.failure_reason()
-        if not errors_df.empty:
-            with st.expander("⚠️ Errores de modelos descartados"):
-                st.dataframe(errors_df[["Model", "Error Message"]])
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
