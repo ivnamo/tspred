@@ -42,11 +42,8 @@ if uploaded_file:
 
         st.info(f"🧶 Estimando alrededor de {total_models} modelos por evaluar...")
 
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        for i in range(40):
-            time.sleep(0.05)
-            progress_bar.progress((i + 1) / 40)
+        # Tiempo de entrenamiento
+        start = time.perf_counter()
 
         try:
             with st.spinner("⏳ Ejecutando AutoTS (puede tardar unos minutos)..."):
@@ -59,40 +56,52 @@ if uploaded_file:
                     max_generations=max_generations,
                     drop_most_recent=1,
                     validation_method="backwards",
-                    num_validations=1
+                    num_validations=1,
+                    verbose=True
                 )
                 model = model.fit(df)
                 prediction = model.predict()
                 forecast_df = prediction.forecast
+                upper = prediction.upper_forecast
+                lower = prediction.lower_forecast
+
         except ValueError as e:
             if "forecast_length is too large for training data" in str(e):
                 st.error("❌ Error: El horizonte de predicción es demasiado largo para los datos disponibles.\n"
                          "Prueba reduciendo el `forecast_length`, agregando más datos, o ajustando la configuración de validación.")
             else:
                 st.exception(e)
-            progress_bar.empty()
             st.stop()
 
-        progress_bar.empty()
-        st.success("✅ Modelos entrenados y predicción generada")
+        duration = time.perf_counter() - start
+        st.success(f"✅ Modelos entrenados en {duration:.2f} segundos.")
 
-        st.subheader("📈 Predicción")
-        st.line_chart(forecast_df)
-
+        st.subheader("📈 Predicción con intervalo de confianza")
         fig, ax = plt.subplots()
         df.iloc[:, 0].plot(ax=ax, label="Histórico", color="blue")
         forecast_df.iloc[:, 0].plot(ax=ax, label="Predicción", color="orange", linestyle="--")
+        if upper is not None and lower is not None:
+            ax.fill_between(upper.index, lower.iloc[:, 0], upper.iloc[:, 0], color='orange', alpha=0.2, label='Intervalo de confianza')
         plt.legend()
         st.pyplot(fig)
 
         st.subheader("🏆 Mejor modelo")
-        st.markdown(f"**Modelo:** `{model.best_model_name}`")
-        st.markdown("**Parámetros:**")
-        st.json(model.best_model_params)
+        friendly_names = {
+            "SeasonalNaive": "Modelo estacional básico",
+            "GLS": "Regresión lineal generalizada",
+            "BasicLinearModel": "Modelo lineal básico",
+        }
+        modelo_nombre = friendly_names.get(model.best_model_name, model.best_model_name)
+        st.markdown(f"**Modelo seleccionado:** `{modelo_nombre}`")
 
-        st.subheader("📊 Top 5 modelos y puntuaciones")
+        with st.expander("🔍 Parámetros técnicos del modelo"):
+            st.json(model.best_model_params)
+
+        st.subheader("📊 Mejores modelos")
         results_df = model.results().sort_values("Score", ascending=False)
-        st.dataframe(results_df[["Model", "TransformationParameters", "Score"]].head())
+        simplified = results_df[["Model", "Score"]].head()
+        simplified["Model"] = simplified["Model"].apply(lambda x: friendly_names.get(x, x))
+        st.table(simplified.reset_index(drop=True))
 
         st.markdown(f"📌 Modelos evaluados exitosamente: **{len(results_df)}**")
 
@@ -113,4 +122,5 @@ if uploaded_file:
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
+
 
