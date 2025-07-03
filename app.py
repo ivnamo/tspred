@@ -47,20 +47,30 @@ if uploaded_file:
                      f"para un horizonte de predicción de {forecast_length} días. "
                      "Reduce el horizonte o agrega más datos.")
         else:
-            with st.spinner("⏳ Ejecutando AutoTS (puede tardar unos minutos)..."):
-                model = AutoTS(
-                    forecast_length=forecast_length,
-                    frequency='infer',
-                    ensemble=ensemble_mode,
-                    model_list=model_list_option,
-                    transformer_list="fast",
-                    max_generations=max_generations,
-                    drop_most_recent=1,
-                    validation_method="backwards"
-                )
-                model = model.fit(df)
-                prediction = model.predict()
-                forecast_df = prediction.forecast
+            try:
+                with st.spinner("⏳ Ejecutando AutoTS (puede tardar unos minutos)..."):
+                    model = AutoTS(
+                        forecast_length=forecast_length,
+                        frequency='infer',
+                        ensemble=ensemble_mode,
+                        model_list=model_list_option,
+                        transformer_list="fast",
+                        max_generations=max_generations,
+                        drop_most_recent=1,
+                        validation_method="backwards",
+                        num_validations=1
+                    )
+                    model = model.fit(df)
+                    prediction = model.predict()
+                    forecast_df = prediction.forecast
+            except ValueError as e:
+                if "forecast_length is too large for training data" in str(e):
+                    st.error("❌ Error: El horizonte de predicción es demasiado largo para los datos disponibles.\n"
+                             "Prueba reduciendo el `forecast_length`, agregando más datos, o ajustando la configuración de validación.")
+                else:
+                    st.exception(e)
+                progress_bar.empty()
+                st.stop()
 
             progress_bar.empty()
             st.success("✅ Modelos entrenados y predicción generada")
@@ -99,6 +109,9 @@ if uploaded_file:
                 file_name="forecast_autots.csv",
                 mime='text/csv'
             )
+
+else:
+    st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
 
 else:
     st.warning("👈 Sube primero un archivo CSV con índice de fecha y al menos una columna de valores.")
