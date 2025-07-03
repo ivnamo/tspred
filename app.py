@@ -87,7 +87,8 @@ if uploaded_file:
         # AutoTS no expone errores de modelos descartados directamente
         with st.expander("ℹ️ Información"):
         st.markdown("ℹ️ Algunos modelos fueron descartados automáticamente durante la evaluación. "
-                "AutoTS continúa con los modelos viables y elige el mejor sin necesidad de intervención.")
+                "AutoTS continúa con los modelos viables y elige el mejor sin necesidad de intervención."
+                   )
 
 
 else:
