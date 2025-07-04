@@ -84,12 +84,11 @@ if uploaded_file:
                 st.dataframe(top_models[["Model", "TransformationParameters"]])
 
             # Visualización de predicción con IC
-            st.subheader("📈 Predicción vs Histórico")
-            plt.figure(figsize=(10, 5))
+            st.subheader("📈 Predicción con intervalos de confianza")
+            plt.figure(figsize=(12, 6))
             plt.plot(df[value_column].iloc[-60:], label="Histórico", color="blue")
             plt.plot(forecast_df[value_column], label="Predicción", linestyle="--", color="orange")
 
-            # Si hay IC disponibles:
             if prediction.lower_forecast is not None and prediction.upper_forecast is not None:
                 plt.fill_between(
                     forecast_df.index,
@@ -98,6 +97,9 @@ if uploaded_file:
                     color='orange', alpha=0.2, label='Intervalo de confianza'
                 )
 
+            plt.xlabel("Fecha")
+            plt.ylabel(value_column)
+            plt.title("Predicción vs Histórico con Intervalo de Confianza")
             plt.legend()
             plt.grid(True)
             st.pyplot(plt)
