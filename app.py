@@ -2,107 +2,107 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from autots import AutoTS
-import time
+from io import StringIO
+from datetime import datetime
 
-st.set_page_config(page_title="Predicción de Series Temporales", layout="centered")
-st.title("⏳ Predicción automática de series temporales")
+st.set_page_config(page_title="Predicción de Series Temporales", layout="wide")
+st.title("📈 Predicción automática de series temporales")
 
-st.sidebar.header("⚙️ Configuración del modelo")
-forecast_length = st.sidebar.slider("Horizonte de predicción (días)", 7, 90, 30)
+# Sidebar - Parámetros del modelo
+st.sidebar.header("⚙️ Parámetros del modelo")
+forecast_length = st.sidebar.number_input("Horizonte de predicción", 1, 365, 30)
 max_generations = st.sidebar.slider("Generaciones (iteraciones)", 1, 10, 5)
 
-uploaded_file = st.file_uploader("📂 Sube tu archivo CSV con la serie temporal", type=["csv"])
+# Cargar archivo CSV
+uploaded_file = st.file_uploader("📂 Sube un archivo CSV con una serie temporal", type=["csv"])
+
 if uploaded_file:
     try:
-        df = pd.read_csv(uploaded_file, sep=',', quotechar='"')
+        df = pd.read_csv(uploaded_file)
         st.success("✅ Archivo cargado correctamente")
-        st.write("Vista previa de los datos:")
+
+        # Mostrar vista previa
+        st.subheader("👁 Vista previa de los datos")
         st.dataframe(df.head())
 
-        if df.shape[1] < 2:
-            st.error("❌ El archivo debe contener al menos dos columnas: fecha y valor numérico.")
-            st.stop()
+        # Detectar columna de fechas y valores
+        date_col, value_col = df.columns[:2]
+        df[date_col] = df[date_col].astype(str)
 
-        date_column = df.columns[0]
-        value_column = df.columns[1]
-
-        df[date_column] = df[date_column].astype(str).str.replace('"', '').str.strip()
-
+        # Convertir fechas con soporte flexible
         parsed = False
         for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
             try:
-                df[date_column] = pd.to_datetime(df[date_column], format=fmt)
+                df[date_col] = pd.to_datetime(df[date_col], format=fmt)
                 parsed = True
                 break
             except Exception:
                 continue
-
         if not parsed:
             try:
-                df[date_column] = pd.to_datetime(df[date_column], format='mixed')
+                df[date_col] = pd.to_datetime(df[date_col], format="mixed", dayfirst=True)
                 parsed = True
             except Exception as e:
                 st.error(f"❌ No se pudo convertir la columna de fechas automáticamente. Error: {e}")
                 st.stop()
 
-        df.set_index(date_column, inplace=True)
+        df = df[[date_col, value_col]].dropna()
+        df.columns = ["datetime", "value"]
+        df = df.set_index("datetime")
 
-        if not isinstance(df.index, pd.DatetimeIndex):
-            st.error("❌ La columna de fecha no pudo ser convertida en un índice temporal válido.")
-            st.stop()
-
-        if len(df) < forecast_length + 10:
-            st.error("❌ No hay suficientes datos para entrenar el modelo con el horizonte seleccionado.")
+        # Verificación previa de longitud vs. forecast
+        if len(df) < forecast_length * 2:
+            st.warning("⚠️ Demasiados pocos datos para el horizonte de predicción seleccionado. Reduce el horizonte o añade más datos.")
             st.stop()
 
         if st.button("🚀 Ejecutar predicción"):
-            start_time = time.time()
-            with st.spinner("Entrenando modelos, por favor espera..."):
+            with st.spinner("Entrenando modelos..."):
+                progress_bar = st.progress(0)
                 model = AutoTS(
                     forecast_length=forecast_length,
                     frequency='infer',
                     ensemble='simple',
                     max_generations=max_generations,
                     num_validations=2,
-                    validation_method="backwards"
+                    min_allowed_train_percent=0.5,
+                    model_list="fast_parallel",
+                    validation_method="backwards",
+                    verbose=1
                 )
                 model = model.fit(df)
                 prediction = model.predict()
                 forecast_df = prediction.forecast
-            elapsed_time = time.time() - start_time
-            st.success(f"✅ Predicción generada en {elapsed_time:.2f} segundos")
+                upper = prediction.upper_forecast
+                lower = prediction.lower_forecast
 
-            # Mostrar top modelos
-            st.subheader("📊 Top 5 modelos y puntuaciones")
-            model_results = model.results()
-            top_models = model_results.sort_values("Score", ascending=True).head(5)
-            top_models_display = top_models[["Model", "Score"]].copy()
-            st.table(top_models_display.reset_index(drop=True))
+            st.success("✅ Modelos entrenados y predicción generada")
 
-            # Mostrar parámetros técnicos en un expander
-            with st.expander("⚙️ Parámetros técnicos de modelos"):
-                st.dataframe(top_models[["Model", "TransformationParameters"]])
+            # Mostrar métricas
+            st.subheader("🏅 Modelos top")
+            leaderboard = model.results().sort_values(by="Score")
+            st.dataframe(leaderboard[["Model", "Score", "SMAPE"]].head(5))
 
-            # Visualización de predicción con IC
-            st.subheader("📈 Predicción con intervalos de confianza")
-            plt.figure(figsize=(12, 6))
-            plt.plot(df[value_column].iloc[-60:], label="Histórico", color="blue")
-            plt.plot(forecast_df[value_column], label="Predicción", linestyle="--", color="orange")
+            # Gráfica de predicción
+            st.subheader("🔮 Predicción vs histórico")
+            fig, ax = plt.subplots(figsize=(12, 5))
+            df[-forecast_length * 2:].plot(ax=ax, label="Histórico")
+            forecast_df.plot(ax=ax, label="Predicción")
+            if not upper.empty and not lower.empty:
+                ax.fill_between(forecast_df.index, lower.iloc[:, 0], upper.iloc[:, 0], color='orange', alpha=0.2, label='Intervalo de confianza')
+            ax.set_title("Predicción de la serie temporal")
+            ax.set_xlabel("Fecha")
+            ax.set_ylabel("Valor")
+            ax.legend()
+            st.pyplot(fig)
 
-            if prediction.lower_forecast is not None and prediction.upper_forecast is not None:
-                plt.fill_between(
-                    forecast_df.index,
-                    prediction.lower_forecast[value_column],
-                    prediction.upper_forecast[value_column],
-                    color='orange', alpha=0.2, label='Intervalo de confianza'
-                )
-
-            plt.xlabel("Fecha")
-            plt.ylabel(value_column)
-            plt.title("Predicción vs Histórico con Intervalo de Confianza")
-            plt.legend()
-            plt.grid(True)
-            st.pyplot(plt)
+            # Mostrar errores si los hay
+            try:
+                errors_df = model.failure_reason()
+                if not errors_df.empty:
+                    with st.expander("⚠️ Errores de modelos descartados"):
+                        st.dataframe(errors_df[["Model", "Error Message"]])
+            except Exception:
+                pass
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {e}")
